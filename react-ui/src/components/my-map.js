@@ -15,6 +15,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require('leaflet/dist/images/marker-shadow.png')
 });
 
+
 // Actual Map
 function MyMap() {
   let mapContainer;
@@ -57,12 +58,40 @@ function MyMap() {
         },
       onEachFeature: function(feature, layer) {
           layer.bindPopup(`<b>${feature.properties.agency} </b>Route ${feature.properties.route}<br>${feature.properties.route_name}`);
+          layer.on({
+            popupopen: highlightFeature,
+            popupclose: resetHighlight,
+            click: zoomToFeature
+        });
         }
       });
     transitroutes.on('data:loaded', function(){
       transitroutes.setStyle({CANVAS: true}).addTo(map);
     });
 
+    // Highlight bus route on popup open https://leafletjs.com/examples/choropleth/
+    function highlightFeature(e) {
+      var layer = e.target;
+      layer.setStyle({
+          weight: 8,
+          color: 'yellow',
+          dashArray: '',
+          fillOpacity: 1
+      });
+      if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+          layer.bringToFront();
+      }
+    }
+    //Unhighlight when popup is closed
+    function resetHighlight(e) {
+      transitroutes.resetStyle(e.target);
+    }
+    //Zoom to bounds
+    function zoomToFeature(e) {
+      map.fitBounds(e.target.getBounds());
+    }
+
+    //////////////////////////////////////////
     // Layer control add here
     var baseMaps = {
       "Greyscale": greyscale_basemap,
