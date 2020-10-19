@@ -1,0 +1,59 @@
+import React, { Component } from 'react';
+import L from 'leaflet';
+import { Circle, FeatureGroup, LayerGroup, LayersControl, Map, Marker, Popup, Rectangle, TileLayer, GeoJSON } from 'react-leaflet';
+import * as ddot_gtfs from "./data/ddot_gtfs.geojson"
+
+import './App.css';
+import 'leaflet/dist/leaflet.css';
+
+const { BaseLayer, Overlay } = LayersControl
+
+//Reset default icon, bugs in the package. See https://github.com/PaulLeCam/react-leaflet/issues/453
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+  iconUrl: require('leaflet/dist/images/marker-icon.png'),
+  shadowUrl: require('leaflet/dist/images/marker-shadow.png')
+});
+
+//Show map
+const center = [42.3314,-83.0458]
+
+class App extends Component {
+  render () {
+    return (
+      <Map center={center} zoom={8}>
+        <LayersControl position="topright">
+          <BaseLayer checked name="Base Map">
+            <TileLayer
+              url='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+              subdomains= 'abcd'
+            />            
+          </BaseLayer>
+          <Overlay checked name="Popup Hello">
+            <Marker position= {center}>
+              <Popup>
+                <h3> This is the center of the map!</h3> <br /> Testing testing testing.
+              </Popup>
+            </Marker>               
+          </Overlay>
+          <Overlay checked name="DDOT and SMART Routes">
+            <GeoJSON>
+              data={ddot_gtfs}
+              style={() => ({
+                color: '#4a83ec',
+                weight: 0.5,
+                fillColor: "#1a1d62",
+                fillOpacity: 1,
+              })}            
+            </GeoJSON>
+          </Overlay>
+        </LayersControl>        
+      </Map>
+    );
+  }
+}
+
+export default App;

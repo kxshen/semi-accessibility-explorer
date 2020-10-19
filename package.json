@@ -1,0 +1,31 @@
+{
+  "name": "frontend-express-react",
+  "version": "3.0.0",
+  "engines": {
+    "node": "14.x"
+  },
+  "main": "index.js",
+  "description": "Testing. again",
+  "scripts": {
+    "start": "nodemon server",
+    "heroku-postbuild": "cd react-ui/ && npm install && npm run build"
+  },
+  "cacheDirectories": [
+    "node_modules",
+    "react-ui/node_modules"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cookie-parser": "^1.4.5",
+    "debug": "^4.2.0",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "http-errors": "^1.8.0",
+    "mongodb": "^3.6.2",
+    "mongoose": "^5.10.9",
+    "morgan": "^1.10.0",
+    "nodemon": "^2.0.5"
+  }
+}
