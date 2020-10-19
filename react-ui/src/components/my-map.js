@@ -4,7 +4,7 @@ import L from 'leaflet';
 import {} from 'mapbox-gl-leaflet';
 import {} from 'leaflet-ajax'
 //import {GeoJSON} from 'react-leaflet'
-import local_data from './data/smart_gtfs_short.js';
+//import local_data from './data/smart_gtfs_short.js';
 //import $ from 'jquery'
 
 //Reset default icon, bugs in the package. See https://github.com/PaulLeCam/react-leaflet/issues/453
