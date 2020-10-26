@@ -33,7 +33,7 @@ app.get('/api/maplayers', function (req, res) {
 
 //Logger from Morgan for development
 app.use(logger('dev'));
-//app.use(express.json());
+app.use(express.json());
 //app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 

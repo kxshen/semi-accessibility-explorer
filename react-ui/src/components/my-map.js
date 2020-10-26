@@ -1,27 +1,25 @@
 import React, { useEffect } from 'react';
 import './my-map.css';
-import L from 'leaflet';
-import {} from 'mapbox-gl-leaflet';
-import {} from 'leaflet-ajax'
-//import {GeoJSON} from 'react-leaflet'
-//import local_data from './data/smart_gtfs_short.js';
-//import $ from 'jquery'
-
-//Reset default icon, bugs in the package. See https://github.com/PaulLeCam/react-leaflet/issues/453
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-  iconUrl: require('leaflet/dist/images/marker-icon.png'),
-  shadowUrl: require('leaflet/dist/images/marker-shadow.png')
-});
-
+import MapGL from 'react-map-gl';
 
 // Actual Map
-function MyMap() {
-  let mapContainer;
+function MyMap({
+  width,
+  height,
+  }
+) {
+  return (
+      <MapGL
+      width={width}
+      height={height}
+      mapStyle="https://api.maptiler.com/maps/positron/style.json?key=exZ5EI9ZzPeWj7DkSjKi"
+      ></MapGL>
+  )
 
+
+/* 
   useEffect(() => {
-    //Initially center the map on Detroit
+    Initially center the map on Detroit
     const initialState = {
       lng: -83.0458,
       lat: 42.3314,
@@ -32,7 +30,7 @@ function MyMap() {
 
     const attribution = `© <a href='https://www.mapbox.com/about/maps/'>Mapbox</a> © <a href='http://www.openstreetmap.org/copyright'>OpenStreetMap</a> <strong><a href='https://www.mapbox.com/map-feedback/' target='_blank'>Improve this map</a></strong>`
 
-    // Set basemap layer default (Positron)
+    Set basemap layer default (Positron)
     const greyscale_basemap = L.mapboxGL({
       accessToken: 'no-token',
       attribution,
@@ -40,13 +38,13 @@ function MyMap() {
       style: 'https://api.maptiler.com/maps/positron/style.json?key=exZ5EI9ZzPeWj7DkSjKi' 
     }).addTo(map);
 
-    // Add basemap layer option (OSM)
+    Add basemap layer option (OSM)
     const streets_basemap = L.mapboxGL({
       accessToken: 'no-token',
       style: 'https://api.maptiler.com/maps/streets/style.json?key=exZ5EI9ZzPeWj7DkSjKi' 
     });
 
-    //add MongoDB database via API routing
+    add MongoDB database via API routing
     var transitroutes = new L.GeoJSON.AJAX(
       "/api/maplayers",
       {
@@ -69,7 +67,7 @@ function MyMap() {
       transitroutes.setStyle({CANVAS: true}).addTo(map);
     });
 
-    // Highlight bus route on popup open https://leafletjs.com/examples/choropleth/
+    Highlight bus route on popup open https://leafletjs.com/examples/choropleth/
     function highlightFeature(e) {
       var layer = e.target;
       layer.setStyle({
@@ -82,17 +80,17 @@ function MyMap() {
           layer.bringToFront();
       }
     }
-    //Unhighlight when popup is closed
+    Unhighlight when popup is closed
     function resetHighlight(e) {
       transitroutes.resetStyle(e.target);
     }
-    //Zoom to bounds
+    Zoom to bounds
     function zoomToFeature(e) {
       map.fitBounds(e.target.getBounds());
     }
 
-    //////////////////////////////////////////
-    // Layer control add here
+    //////////////////////////////////////
+    Layer control add here
     var baseMaps = {
       "Greyscale": greyscale_basemap,
       "OpenStreetMaps": streets_basemap,
@@ -100,7 +98,7 @@ function MyMap() {
     var overlayMaps = {
       "Transit Routes": transitroutes,
     }
-    // Create layers control panel, do not collapse into the layer icon
+    Create layers control panel, do not collapse into the layer icon
     L.control.layers(baseMaps, overlayMaps,
       {collapsed: false}
       ).addTo(map);
@@ -110,7 +108,7 @@ function MyMap() {
   return (
     <div className="map-container" ref={el => mapContainer = el}>
     </div>
-  )
+  ) */
 }
 
 export default MyMap;

@@ -2,6 +2,8 @@ var mongoose = require('mongoose');
 
 // Create a Mongoose Schema
 var Schema = mongoose.Schema;
+var Schema = mongoose.Schema;
+
 var JsonSchema = new Schema({
     name: String,
     type: Schema.Types.Mixed
