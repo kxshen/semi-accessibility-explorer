@@ -14,7 +14,8 @@ body {
 }
 
 .map {
-  height: 100%;
+  z-index: 0;
+  position: relative;
 }
 
 .footer {
@@ -23,4 +24,20 @@ body {
   bottom: 5px;
   left: 5px;
   padding: 5px;
+}
+
+.header {
+  z-index: 10;
+  position: absolute;
+  top: 0px;
+  left: 50px;
+}
+
+
+.title {
+  color: rgb(0, 0, 0);
+  text-shadow: 0 0 1px var(--shadow);
+  font-size: 1.5rem;
+  margin: 1rem 0;
+  font-weight: var(--bold);
 }

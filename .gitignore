@@ -2,6 +2,9 @@ react-ui/node_modules
 
 react-ui/build
 
+client/node_modules
+client/git 
+
 # Node build artifacts
 node_modules
 npm-debug.log

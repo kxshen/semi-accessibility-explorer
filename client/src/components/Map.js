@@ -1,9 +1,10 @@
 import * as React from 'react';
 import ReactMapGL, { NavigationControl, FullscreenControl, ScaleControl } from 'react-map-gl';
 import { Source, Layer } from 'react-map-gl';
+//require('dotenv').config()
 //import { DeckGL, GeoJsonLayer } from 'deck.gl';
 
-function Map() {
+function Map(props) {
     const [viewState, setViewState] = React.useState({
         longitude: -83.0458,
         latitude: 42.3314,
@@ -19,9 +20,10 @@ function Map() {
         type: 'FeatureCollection',
         features: []
       });
-
+    //Use effect hook executes ONCE or listens for changes to the states listed in the []
     React.useEffect(() => {
             getData();
+            console.log(props.race)
     }, []);
 
     async function getData() {
@@ -60,13 +62,15 @@ function Map() {
           })
     ]  */
 
+    // https://api.maptiler.com/maps/streets/style.json?key=exZ5EI9ZzPeWj7DkSjKi&optimize=true for other basemap style
     return (
     <ReactMapGL
         width="100vw"
         height="100vh"
         viewState={viewState}
         onViewStateChange={handleChangeViewState}
-        mapStyle="https://api.maptiler.com/maps/streets/style.json?key=exZ5EI9ZzPeWj7DkSjKi&optimize=true"
+        mapboxApiAccessToken="pk.eyJ1Ijoia3NoZW4xMTEwIiwiYSI6ImNraDB5ZTJsOTAwZjgydnF4NzQ5Y2piM2cifQ.w85EWLCniHHEDOD-yZ-RnA"
+        mapStyle="mapbox://styles/mapbox/dark-v10"
     >
 
         <Source 
@@ -88,7 +92,70 @@ function Map() {
                     'line-opacity': 0.5,
                     'line-width': 4
                     }}
+                layout={{'visibility': 'none'}}
             />
+        </Source>
+        <Source
+            id="dot-density"
+            type="vector"
+            url="mapbox://kshen1110.results"
+            >
+            <Layer 
+                id="dots-layer" 
+                source="dot-density"
+                source-layer= 'access'
+                type="circle"
+                paint= {{
+                    /* very roundabout ways of selecting data within Mapbox expressions */
+                    'circle-color': [
+                        'match',
+                        ['get','inc'],
+                        'low',
+                        [
+                            'match',
+                            ['get', 'res17'],
+                            '1', '#ca0020',
+                            '2', '#f4a582', 
+                            '3', '#f7f7f7',
+                            '4', '#92c5de',
+                            '5', '#0571b0',
+                            /* other */ '#ca0020'
+                        ],
+                        'high',
+                        [
+                            'match',
+                            ['get', 'res5'],
+                            '1', '#ca0020',
+                            '2', '#f4a582', 
+                            '3', '#f7f7f7',
+                            '4', '#92c5de',
+                            '5', '#0571b0',
+                            /* other */ '#ca0020'
+                        ],
+                        '#FF69B4' /* mistakes will turn HOT PINK */
+                    ]
+                    ,
+                    'circle-opacity': 1 /*[
+                        'match',
+                        ['get', 'race'],
+                        props.race, 1,
+                        0
+                    ]*/,
+                    'circle-radius': { stops: [[8, 1], [9, 1.3], [10,1.7], [13, 2], [15, 4]] }
+                    }}
+                filter={[
+                    'all', 
+                    ['any',
+                        ['==', 'inc', props.lowinc ? 'low' : ''],
+                        ['==', 'inc', props.highinc ? 'high' : ''],
+                    ],
+                    ['any',
+                        ['==', 'race', props.black ? 'black' : ''],
+                        ['==', 'race', props.nonblack ? 'nonblack' : ''],
+                    ]
+                    ]}
+            >
+            </Layer>
         </Source>
 {/*         <DeckGL viewState={viewState} layers={layers} />
  */}

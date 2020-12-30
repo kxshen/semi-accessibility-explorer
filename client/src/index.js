@@ -2,15 +2,17 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 //drop CSS here
 import './index.css';
-import 'bootstrap/dist/css/bootstrap.css';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { ChakraProvider } from "@chakra-ui/react"
 
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
 ReactDOM.render(
   <React.StrictMode>
-    <App />
+    <ChakraProvider>
+      <App />
+    </ChakraProvider>
   </React.StrictMode>,
   document.getElementById('root')
 );
