@@ -14,6 +14,16 @@ function Map(props) {
       });
     const handleChangeViewState = ({ viewState }) => setViewState(viewState);
 
+    //Setting the dataset to retrieve. Use effect hook watches changes in states to execute
+    const [dataindex, setDataindex] = React.useState(1) //Sets tileset index for matching with Mapbox tileset
+    React.useEffect(() => {
+        const ind = 1 +
+            (props.peak ? 6 : 0) +
+            (props.cutoff == '30' ? 0 : (props.cutoff == '45' ? 2 : 4)) +
+            (props.perc == '50' ? 0 : 1)
+        setDataindex(ind)
+    }, [props.peak, props.cutoff, props.perc]);
+
     //Fetch API data for transit routes
     //need to set the initial state to a real GeoJSON format in order to get thing started properly
     const [transitData, setTransitData] = React.useState({
@@ -23,7 +33,7 @@ function Map(props) {
     //Use effect hook executes ONCE or listens for changes to the states listed in the []
     React.useEffect(() => {
             getData();
-            console.log(props.race)
+            console.log()
     }, []);
 
     async function getData() {
@@ -113,7 +123,7 @@ function Map(props) {
                         'low',
                         [
                             'match',
-                            ['get', 'res17'],
+                            ['get', 'res'+(dataindex+12)],
                             '1', '#ca0020',
                             '2', '#f4a582', 
                             '3', '#f7f7f7',
@@ -124,7 +134,7 @@ function Map(props) {
                         'high',
                         [
                             'match',
-                            ['get', 'res5'],
+                            ['get', 'res'+dataindex],
                             '1', '#ca0020',
                             '2', '#f4a582', 
                             '3', '#f7f7f7',
