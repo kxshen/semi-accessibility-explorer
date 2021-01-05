@@ -140,6 +140,12 @@ function App() {
               This tool aims to help showcase well-known anecdotes of inaccessibility in a new light, to see what new insights you might gain from doing so. 
               It aims to amplify your feedback and stories in pursuit of a more just and mobile future for all. ✊
             </p>
+            <br/>
+            <p> Please don't forget to fill out the <Link color="teal.300" href="https://forms.gle/5FqtvY9xLTux55kv6">
+              feedback form
+            </Link>!
+            </p>
+
           </Box>
 
           {/* Final footer */}

@@ -7,9 +7,9 @@ import { Source, Layer } from 'react-map-gl';
 
 function Map(props) {
     const [viewState, setViewState] = React.useState({
-        longitude: -83.0458,
-        latitude: 42.3314,
-        zoom: 8,
+        longitude: -83.512322409556,
+        latitude: 42.476398629668644,
+        zoom: 9,
         pitch: 0,
         bearing: 0,
       });
@@ -34,7 +34,6 @@ function Map(props) {
     //Use effect hook executes ONCE or listens for changes to the states listed in the []
     React.useEffect(() => {
             getData();
-            console.log(props.transitvisible)
     }, []);
 
     async function getData() {
@@ -63,7 +62,7 @@ function Map(props) {
         }
         setTransitData(feature_collection)
     }
-    
+
     return (
     <ReactMapGL
         width="100vw"
