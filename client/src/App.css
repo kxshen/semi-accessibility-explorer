@@ -19,10 +19,10 @@ body {
 }
 
 .footer {
-  z-index: 999;
+  z-index: 10;
   position: absolute;
-  bottom: 5px;
-  left: 5px;
+  bottom: 50px;
+  right: 5px;
   padding: 5px;
 }
 
@@ -33,6 +33,14 @@ body {
   left: 50px;
 }
 
+.legend {
+  z-index: 10;
+  position: absolute;
+  bottom: 100px;
+  right: 5px;
+  padding: 5px;
+  width: 200px;
+}
 
 .title {
   color: rgb(0, 0, 0);
@@ -41,3 +49,4 @@ body {
   margin: 1rem 0;
   font-weight: var(--bold);
 }
+

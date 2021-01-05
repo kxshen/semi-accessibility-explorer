@@ -1,6 +1,7 @@
 import * as React from 'react';
 import ReactMapGL, { NavigationControl, FullscreenControl, ScaleControl } from 'react-map-gl';
 import { Source, Layer } from 'react-map-gl';
+
 //require('dotenv').config()
 //import { DeckGL, GeoJsonLayer } from 'deck.gl';
 
@@ -33,7 +34,7 @@ function Map(props) {
     //Use effect hook executes ONCE or listens for changes to the states listed in the []
     React.useEffect(() => {
             getData();
-            console.log()
+            console.log(props.transitvisible)
     }, []);
 
     async function getData() {
@@ -62,17 +63,7 @@ function Map(props) {
         }
         setTransitData(feature_collection)
     }
-
-/*      const layers = [
-        new GeoJsonLayer({
-            id: 'transit_routes',
-            data: 'api/maplayers',
-            lineWidthMinPixels: 1,
-            getLineColor: [0, 0, 0, 20],
-          })
-    ]  */
-
-    // https://api.maptiler.com/maps/streets/style.json?key=exZ5EI9ZzPeWj7DkSjKi&optimize=true for other basemap style
+    
     return (
     <ReactMapGL
         width="100vw"
@@ -80,7 +71,7 @@ function Map(props) {
         viewState={viewState}
         onViewStateChange={handleChangeViewState}
         mapboxApiAccessToken="pk.eyJ1Ijoia3NoZW4xMTEwIiwiYSI6ImNraDB5ZTJsOTAwZjgydnF4NzQ5Y2piM2cifQ.w85EWLCniHHEDOD-yZ-RnA"
-        mapStyle="mapbox://styles/mapbox/dark-v10"
+        mapStyle={props.basemap}
     >
 
         <Source 
@@ -100,9 +91,9 @@ function Map(props) {
                         /* other */ '#ccc'
                     ],
                     'line-opacity': 0.5,
-                    'line-width': 4
+                    'line-width': 2
                     }}
-                layout={{'visibility': 'none'}}
+                layout={{'visibility': (props.transitvisible ? "visible" : "none")}}
             />
         </Source>
         <Source
@@ -143,8 +134,7 @@ function Map(props) {
                             /* other */ '#ca0020'
                         ],
                         '#FF69B4' /* mistakes will turn HOT PINK */
-                    ]
-                    ,
+                    ],
                     'circle-opacity': 1 /*[
                         'match',
                         ['get', 'race'],
@@ -176,7 +166,7 @@ function Map(props) {
         <div style={{position: 'absolute', right: '5px', bottom: '20px'}}>
             <ScaleControl maxWidth={100} unit={"metric"}/>
         </div>
-        </ReactMapGL>
+    </ReactMapGL>
     );
 }
 

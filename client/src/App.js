@@ -9,18 +9,24 @@ import {
   Flex,
   Slide,
   IconButton,
-  SlideFade,
   VStack,
   Heading,
   Text,
   ButtonGroup,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
+  MenuOptionGroup,
+  MenuItemOption,
+  MenuDivider,
+  Image,
 } from "@chakra-ui/react"
-import { CloseIcon } from '@chakra-ui/icons'
-
+import { CloseIcon, ChevronDownIcon } from '@chakra-ui/icons'
+import Legend from "./components/legend.png"
 
 function App() {
   /* Initialize States */
-  const [visible, setVisible] = React.useState(true)
   const [black, setBlack] = React.useState(true)
   const [nonblack, setNonblack] = React.useState(true)
   const [lowinc, setLowinc] = React.useState(true)
@@ -28,8 +34,11 @@ function App() {
   const [peak, setPeak] = React.useState(true)
   const [cutoff, setCutoff] = React.useState('45')
   const [perc, setPerc] = React.useState('50')
+  const [basemap, setBasemap] = React.useState("mapbox://styles/mapbox/dark-v10")
+  const [transitvisible, setTransitvisible] = React.useState(false)
 
-  const { isOpen, onToggle, onClose } = useDisclosure() /* Control panel opening */
+
+  const { isOpen, onToggle } = useDisclosure() /* Control panel opening */
   const btnRef = React.useRef() /* Use reference to have specific button for Drawer to listen to? I think? */
 
   return (
@@ -48,6 +57,8 @@ function App() {
           peak = {peak}
           cutoff = {cutoff}
           perc = {perc}
+          basemap = {basemap}
+          transitvisible = {transitvisible}
           className='map'>
         </Map>
 
@@ -80,6 +91,12 @@ function App() {
               <Button onClick={() => { setLowinc(true); setHighinc(false)}} colorScheme="blue" bg={lowinc && !highinc ? "blue.500" : "gray.400"} >Low</Button>
               <Button onClick={() => { setLowinc(false); setHighinc(true)}} colorScheme="blue" bg={!lowinc && highinc ? "blue.500" : "gray.400"}>High</Button>
               <Button onClick={() => { setLowinc(true); setHighinc(true)}} colorScheme="blue" bg={lowinc && highinc ? "blue.500" : "gray.400"}>All</Button>
+            </ButtonGroup>
+            <br/>
+            <p><i>Toggle all data (explore map)</i></p>
+            <ButtonGroup size="sm" isAttached variant="solid">
+              <Button onClick={() => { setLowinc(false); setHighinc(false); setBlack(false); setNonblack(false)}} colorScheme="blue" bg={!lowinc && !highinc ? "blue.500" : "gray.400"} >Off</Button>
+              <Button onClick={() => { setLowinc(true); setHighinc(true); setBlack(true); setNonblack(true)}} colorScheme="blue" bg={lowinc || highinc ? "blue.500" : "gray.400"}>On</Button>
             </ButtonGroup>
             <br/> <br/>
             <Heading fontSize="xl">Job Accessibility Settings</Heading>
@@ -126,6 +143,51 @@ function App() {
           </Text>
         </VStack>
       </Slide>
+
+      {/* Bottom right map controls https://docs.mapbox.com/api/maps/styles/#mapbox-styles*/}
+      <div className="legend">
+      <Box bg="white" p={5} 
+            shadow="md" 
+            borderWidth="1px" 
+            m="5px"           
+            rounded="md"
+            >
+              <Heading fontSize="l">Legend</Heading>
+              <Image src={Legend} alt="legend"/>
+            </Box>
+      </div>
+        <div className="footer">
+            <Menu            
+            p={5} 
+            shadow="md" 
+            borderWidth="1px" 
+            m="5px"
+            rounded="md">
+                <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
+                    Basemap
+                </MenuButton>
+                <MenuList>
+                  <MenuOptionGroup value={basemap} type="radio" onChange={setBasemap}>
+                    <MenuItemOption 
+                    value="mapbox://styles/mapbox/dark-v10"
+                    isChecked={basemap == "mapbox://styles/mapbox/dark-v10"}>Dark</MenuItemOption>
+                    <MenuItemOption 
+                    value="mapbox://styles/mapbox/light-v10"
+                    isChecked={basemap == "mapbox://styles/mapbox/light-v10"}>Light</MenuItemOption>
+                  <MenuItemOption 
+                    value="mapbox://styles/mapbox/streets-v11"
+                    isChecked={basemap == "mapbox://styles/mapbox/streets-v11"}>Streets</MenuItemOption>
+                  <MenuItemOption 
+                    value="mapbox://styles/mapbox/satellite-streets-v11"
+                    isChecked={basemap == "mapbox://styles/mapbox/satellite-streets-v11"}>Satellite</MenuItemOption>
+                  </MenuOptionGroup>
+                  <MenuDivider />
+                  <MenuOptionGroup type="checkbox" onChange={(e) => setTransitvisible(!transitvisible)}>
+                    <MenuItemOption isChecked={transitvisible}>Show bus routes</MenuItemOption>
+                  </MenuOptionGroup>
+                </MenuList>
+            </Menu>          
+            </div>
       </Flex>
 
     </div>
