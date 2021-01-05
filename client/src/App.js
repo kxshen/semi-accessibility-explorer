@@ -21,6 +21,7 @@ import {
   MenuItemOption,
   MenuDivider,
   Image,
+  Link,
 } from "@chakra-ui/react"
 import { CloseIcon, ChevronDownIcon } from '@chakra-ui/icons'
 import Legend from "./components/legend.png"
@@ -75,7 +76,13 @@ function App() {
               <Heading fontSize={28}>SE Michigan Accessibility Explorer <span role="img" aria-label="bus">🚌</span> </Heading>
               <IconButton aria-label="Close Control Panel" icon={<CloseIcon />} onClick={onToggle} color="black"/>
             </Flex>
-            <Text mt={4}>Currently under construction and looking for your feedback! <br/> <i> Last updated: January 4, 2021</i></Text>
+            <Text mt={4}>Currently under construction and looking for your feedback! 
+            <br/>
+            <Link color="teal.300" href="https://forms.gle/5FqtvY9xLTux55kv6">
+               Link to feedback form
+            </Link>
+            <br/>
+            <i> Last updated: January 4, 2021</i></Text>
           </Box>
           <Box p={5} shadow="md" borderWidth="1px" m="5px">
             <Heading fontSize="xl">Data Controls</Heading>
@@ -137,9 +144,7 @@ function App() {
 
           {/* Final footer */}
           <Text p={5} shadow="md" borderWidth="1px" m="5px" bg="purple.700" color="white">
-            Made with <span role="img" aria-label="love">💚</span> by 
-            <a href="http://workofthefuture.mit.edu" target="_blank" rel="noopener noreferrer"> MIT WotF </a> 
-            [link to thesis and Github repo]
+            Made with <span role="img" aria-label="love">💚</span> by <Link color="teal.300" href="http://workofthefuture.mit.edu">MIT WotF</Link> [link to thesis and Github repo]
           </Text>
         </VStack>
       </Slide>
