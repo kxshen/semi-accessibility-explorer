@@ -42,6 +42,11 @@ function App() {
   const { isOpen, onToggle } = useDisclosure() /* Control panel opening */
   const btnRef = React.useRef() /* Use reference to have specific button for Drawer to listen to? I think? */
 
+
+  React.useEffect(() => {
+    onToggle()
+  }, []);
+
   return (
     <div>
       <Flex height="100vh" width="100vw">
@@ -82,7 +87,7 @@ function App() {
                Link to feedback form
             </Link>
             <br/>
-            <i> Last updated: January 4, 2021</i></Text>
+            <i> Last updated: January 11, 2021</i></Text>
           </Box>
           <Box p={5} shadow="md" borderWidth="1px" m="5px">
             <Heading fontSize="xl">Data Controls</Heading>
@@ -150,7 +155,7 @@ function App() {
 
           {/* Final footer */}
           <Text p={5} shadow="md" borderWidth="1px" m="5px" bg="purple.700" color="white">
-            Made with <span role="img" aria-label="love">💚</span> by <Link color="teal.300" href="http://workofthefuture.mit.edu">MIT WotF</Link> [link to thesis and Github repo]
+            Made with <span role="img" aria-label="love">💚</span> by <Link color="teal.300" href="http://workofthefuture.mit.edu">MIT WotF</Link> [will link thesis and Github repo in future]
           </Text>
         </VStack>
       </Slide>
