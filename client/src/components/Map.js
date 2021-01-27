@@ -84,9 +84,9 @@ function Map(props) {
                     'line-color': [
                         'match',
                         ['get', 'agency'],
-                        'AAATA', '#043A80',
+                        'AAATA', '#0788F2',
                         'SMART', '#ED594D', 
-                        'DDOT', '#024547',
+                        'DDOT', '#159782',
                         /* other */ '#ccc'
                     ],
                     'line-opacity': 0.5,
@@ -151,6 +151,10 @@ function Map(props) {
                     ['any',
                         ['==', 'race', props.black ? 'black' : ''],
                         ['==', 'race', props.nonblack ? 'nonblack' : ''],
+                    ],
+                    ['any',
+                        ['==', 'mode', props.trans ? 'transit' : ''],
+                        ['==', 'mode', props.car ? 'car' : ''],
                     ]
                     ]}
             >

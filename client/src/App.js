@@ -22,9 +22,12 @@ import {
   MenuDivider,
   Image,
   Link,
+  UnorderedList,
+  ListItem
 } from "@chakra-ui/react"
 import { CloseIcon, ChevronDownIcon } from '@chakra-ui/icons'
 import Legend from "./components/legend.png"
+import WelcomeModal from './components/welcome'
 
 function App() {
   /* Initialize States */
@@ -37,11 +40,13 @@ function App() {
   const [perc, setPerc] = React.useState('50')
   const [basemap, setBasemap] = React.useState("mapbox://styles/mapbox/dark-v10")
   const [transitvisible, setTransitvisible] = React.useState(false)
+  const [trans, setTrans] = React.useState(true)
+  const [car, setCar] = React.useState(true)
 
 
   const { isOpen, onToggle } = useDisclosure() /* Control panel opening */
   const btnRef = React.useRef() /* Use reference to have specific button for Drawer to listen to? I think? */
-
+  const [modal, setModal] = React.useState(true)
 
   React.useEffect(() => {
     onToggle()
@@ -65,8 +70,14 @@ function App() {
           perc = {perc}
           basemap = {basemap}
           transitvisible = {transitvisible}
+          trans = {trans}
+          car = {car}
           className='map'>
         </Map>
+
+        <WelcomeModal
+          open = {modal}
+          toggle = {setModal}></WelcomeModal>
 
       <Slide direction="left" in={isOpen} style={{height:'100vh', width: '300px', zIndex: 100 }}>
         <VStack            
@@ -81,20 +92,22 @@ function App() {
               <Heading fontSize={28}>SE Michigan Accessibility Explorer <span role="img" aria-label="bus">🚌</span> </Heading>
               <IconButton aria-label="Close Control Panel" icon={<CloseIcon />} onClick={onToggle} color="black"/>
             </Flex>
-            <Text mt={4}>Currently under construction and looking for your feedback! 
-            <br/>
+            <Button mt={2} colorScheme="blue" onClick={() => setModal(true)}>
+              Open introduction
+            </Button>
+            <Text mt={0}>
             <Link color="teal.300" href="https://forms.gle/5FqtvY9xLTux55kv6">
                Link to feedback form
             </Link>
             <br/>
-            <i> Last updated: January 11, 2021</i></Text>
+            <i> Last updated: January 27, 2021</i></Text>
           </Box>
           <Box p={5} shadow="md" borderWidth="1px" m="5px">
             <Heading fontSize="xl">Data Controls</Heading>
             <p><i>Race</i></p>
             <ButtonGroup size="sm" isAttached variant="solid">
               <Button onClick={() => { setBlack(true); setNonblack(false)}} colorScheme="blue" bg={black && !nonblack ? "blue.500" : "gray.400"} >Black</Button>
-              <Button onClick={() => { setBlack(false); setNonblack(true)}} colorScheme="blue" bg={!black &&  nonblack ? "blue.500" : "gray.400"}>Nonblack</Button>
+              <Button onClick={() => { setBlack(false); setNonblack(true)}} colorScheme="blue" bg={!black &&  nonblack ? "blue.500" : "gray.400"}>Non-Black</Button>
               <Button onClick={() => { setBlack(true); setNonblack(true)}} colorScheme="blue" bg={black && nonblack ? "blue.500" : "gray.400"}>All</Button>
             </ButtonGroup>
             <br/>
@@ -105,57 +118,79 @@ function App() {
               <Button onClick={() => { setLowinc(true); setHighinc(true)}} colorScheme="blue" bg={lowinc && highinc ? "blue.500" : "gray.400"}>All</Button>
             </ButtonGroup>
             <br/>
+            <p><i>Car ownership</i></p>
+            <ButtonGroup size="sm" isAttached variant="solid">
+              <Button onClick={() => { setTrans(true); setCar(false)}} colorScheme="blue" bg={trans && !car ? "blue.500" : "gray.400"} >No car</Button>
+              <Button onClick={() => { setTrans(false); setCar(true)}} colorScheme="blue" bg={!trans && car ? "blue.500" : "gray.400"}>Car</Button>
+              <Button onClick={() => { setTrans(true); setCar(true)}} colorScheme="blue" bg={trans && car ? "blue.500" : "gray.400"}>All</Button>
+            </ButtonGroup>
+            <br/>
             <p><i>Toggle all data (explore map)</i></p>
             <ButtonGroup size="sm" isAttached variant="solid">
               <Button onClick={() => { setLowinc(false); setHighinc(false); setBlack(false); setNonblack(false)}} colorScheme="blue" bg={!lowinc && !highinc ? "blue.500" : "gray.400"} >Off</Button>
               <Button onClick={() => { setLowinc(true); setHighinc(true); setBlack(true); setNonblack(true)}} colorScheme="blue" bg={lowinc || highinc ? "blue.500" : "gray.400"}>On</Button>
             </ButtonGroup>
-            <br/> <br/>
-            <Heading fontSize="xl">Job Accessibility Settings</Heading>
-            <p><i>Time Travel Cutoff</i></p>
+            <br/>
+            <p><i>Travel Time Cutoff</i></p>
             <ButtonGroup size="sm" isAttached variant="solid">
               <Button onClick={() => { setCutoff('30')}} colorScheme="blue" bg={cutoff == '30' ? "blue.500" : "gray.400"} >30 min</Button>
               <Button onClick={() => { setCutoff('45')}} colorScheme="blue" bg={cutoff == '45' ? "blue.500" : "gray.400"}>45 min</Button>
               <Button onClick={() => { setCutoff('60')}} colorScheme="blue" bg={cutoff == '60' ? "blue.500" : "gray.400"}>60 min</Button>
-            </ButtonGroup>
-            <br/>
-            <p><i>Transit Service Type (subtle)</i></p>
-            <ButtonGroup size="sm" isAttached variant="solid">
-              <Button onClick={() => { setPeak(false)}} colorScheme="blue" bg={!peak ? "blue.500" : "gray.400"} >Off-Peak</Button>
-              <Button onClick={() => { setPeak(true)}} colorScheme="blue" bg={peak ? "blue.500" : "gray.400"}>Peak</Button>
-            </ButtonGroup>
-            <br/>
-            <p><i>Travel Time Percentile (subtle)</i></p>
-            <ButtonGroup size="sm" isAttached variant="solid">
-              <Button onClick={() => { setPerc('50')}} colorScheme="blue" bg={perc == '50' ? "blue.500" : "gray.400"} >50th</Button>
-              <Button onClick={() => { setPerc('75')}} colorScheme="blue" bg={perc == '75' ? "blue.500" : "gray.400"}>75th</Button>
             </ButtonGroup>
           </Box>
 
           <Box p={5} shadow="md" borderWidth="1px" m="5px">
             <Heading fontSize="xl">What is being shown here?</Heading>
             <p>
-              This map shows access to jobs in Southeast Michigan including Wayne, Washtenaw, Macomb, and Oakland Counties. 
-              Each dot roughly represents one person and many of the low accessibility dots represent people who do not have access to a car and must rely on transit or other means of getting around. 
-              It hopes to make clear that the 21 mile man is not a unique story-- many residents of the region face large barriers in getting to work. 
+              This map shows how difficult it is to get to jobs for people in Wayne, Washtenaw, Macomb, and Oakland Counties, MI. 
+              <br/> <br/>
+              Each dot roughly represents one person aged 16 and over. Don't fret, locations are simulated and not exact.
+              <br/> <br/>
+              People with higher job accessibility (<font color="#0571b0">bluer</font> dots) can reach many jobs easily, perhaps they live close to many jobs or have a car. 
+              <br/> <br/>
+              People with lower job accessibility (<font color="ca0020">redder</font> dots) can reach fewer jobs with more difficulty. Perhaps they live further from jobs or rely on sparse transit service. 
+              <br/> <br/>
+              More information about the value of the accessibility index can be found in the technical appendix (link incoming). 
             </p>
             <br/>
-            <Heading fontSize="xl">Why are you showing this?</Heading>
-            <p> 
-              This tool aims to help showcase well-known anecdotes of inaccessibility in a new light, to see what new insights you might gain from doing so. 
-              It aims to amplify your feedback and stories in pursuit of a more just and mobile future for all. ✊
-            </p>
-            <br/>
-            <p> Please don't forget to fill out the <Link color="teal.300" href="https://forms.gle/5FqtvY9xLTux55kv6">
+            <p> Please don't forget to fill out the <Link color="teal.400" href="https://forms.gle/5FqtvY9xLTux55kv6">
               feedback form
             </Link>!
             </p>
-
+          </Box>
+          <Box p={5} shadow="md" borderWidth="1px" m="5px">
+            <Heading fontSize="xl">Potential future features</Heading>
+            <i>From feedback thus far. Always welcoming more ideas!</i>
+            <UnorderedList>
+              <ListItem>Clickable pins with your own transportation stories</ListItem>
+              <ListItem>Search bar for addresses</ListItem>
+              <ListItem>Walkthrough page explaining different features of the tool</ListItem>
+            </UnorderedList>
+          </Box>
+          <Box p={5} shadow="md" borderWidth="1px"  m="5px">
+           <Heading fontSize="xl">Calculation Settings</Heading>
+            <p><i>Transit Service Type (subtle)</i></p>
+              <ButtonGroup size="sm" isAttached variant="solid">
+                <Button onClick={() => { setPeak(false)}} colorScheme="blue" bg={!peak ? "blue.500" : "gray.400"} >Off-Peak</Button>
+                <Button onClick={() => { setPeak(true)}} colorScheme="blue" bg={peak ? "blue.500" : "gray.400"}>Peak</Button>
+              </ButtonGroup>
+              <br/>
+              <p><i>Travel Time Percentile (<Link color="teal.500" href="https://docs.conveyal.com/analysis/methodology#time-percentile">
+                info
+              </Link>)</i></p>
+              <ButtonGroup size="sm" isAttached variant="solid">
+                <Button onClick={() => { setPerc('50')}} colorScheme="blue" bg={perc == '50' ? "blue.500" : "gray.400"} >50th</Button>
+                <Button onClick={() => { setPerc('75')}} colorScheme="blue" bg={perc == '75' ? "blue.500" : "gray.400"}>75th</Button>
+              </ButtonGroup>
           </Box>
 
           {/* Final footer */}
           <Text p={5} shadow="md" borderWidth="1px" m="5px" bg="purple.700" color="white">
-            Made with <span role="img" aria-label="love">💚</span> by <Link color="teal.300" href="http://workofthefuture.mit.edu">MIT WotF</Link> [will link thesis and Github repo in future]
+            Made with <span role="img" aria-label="love">💚</span> by <Link color="teal.300" href="http://workofthefuture.mit.edu">MIT WotF</Link> 
+            <br/>
+            [links to documentation incoming]
+            <br/>
+            Contact: <i>kxshen@mit.edu</i>
           </Text>
         </VStack>
       </Slide>
@@ -168,8 +203,9 @@ function App() {
             m="5px"           
             rounded="md"
             >
-              <Heading fontSize="l">Legend</Heading>
+              <Heading fontSize="l">Job Accessibility</Heading>
               <Image src={Legend} alt="legend"/>
+              <Text fontSize="xs"><i>approx one dot per person</i></Text>
             </Box>
       </div>
         <div className="footer">
@@ -187,6 +223,9 @@ function App() {
                     <MenuItemOption 
                     value="mapbox://styles/mapbox/dark-v10"
                     isChecked={basemap == "mapbox://styles/mapbox/dark-v10"}>Dark</MenuItemOption>
+                    <MenuItemOption 
+                    value="mapbox://styles/kshen1110/ckkej36gz11if17o5y3xe5017"
+                    isChecked={basemap == "mapbox://styles/kshen1110/ckkej36gz11if17o5y3xe5017"}>Dark+Interstates</MenuItemOption>
                     <MenuItemOption 
                     value="mapbox://styles/mapbox/light-v10"
                     isChecked={basemap == "mapbox://styles/mapbox/light-v10"}>Light</MenuItemOption>
