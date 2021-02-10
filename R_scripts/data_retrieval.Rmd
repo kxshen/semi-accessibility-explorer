@@ -1,0 +1,400 @@
+---
+title: "Accessibility analysis data processing"
+output: html_notebook
+---
+11/18: Refactor and neaten up for the public.
+
+# Config
+```{r message=FALSE, warning=FALSE}
+######Libraries and config
+#########
+# census_api_key("INSERT_CENSUS_API_KEY", overwrite = TRUE, install = TRUE)
+readRenviron("~/.Renviron")
+# Checks for set environment variables
+# Sys.getenv("CENSUS_API_KEY")
+# Sys.getenv("MAPBOX_PUBLIC_TOKEN") # didn't wind up using Mapbox for any visualization within R, but here just incase
+
+library(tidycensus) #Retrieve ACS data
+library(sf) #Spatial dataframes
+library(dplyr)
+library(tictoc)
+library(lehdr) #Retrieve LEHD LODES data
+library(raster) #Raster manipulation
+library(rgdal) #Keeping spatial projections straight
+```
+
+# Retrieve "Participating Labor Force" Datasets
+The denominator to the competitive accessibility measure is the labor force that is competing for jobs for the specified scenario. This thesis takes two cases: full population and low-income workers. The unit of analysis for these demographic data is the block group level, but will be incorporated with more detailed scale travel time data later. 
+
+For the first case, as opposed to methodologies by the Urban Institute and Allen and Farber (2020), I use the full population 16 years and older as the competing population. This accounts for those who exit the labor force (i.e. from "unemployed" to NILF) (as in Merlin and Hu 2017), and is especially relevant given the low labor force participation rates in Detroit. Unlike Merlin and Hu (2017), I include those aged 65 and older into the population for ease of comparison to BLS labor force participation rates which use the same definition for their denominator (population-weighted average of competitive accessibility metrics should equal the labor force participation rate for the region, as per Shen 1998, Appendix A). This 16+ population number is also readily available in many ACS data tables. 
+
+Similarly, for the low-income worker case, we employ the Urban Institute's definition of low income as having income below \$3,333/month (around \$40K/year), or the bottom two buckets in LODES' LEHD data. This number is just around the "living wage" number for multiple scenarios for the metro area calculated through the MIT Living Wage Calculator (https://livingwage.mit.edu/metros/19820). The PLF for this case is the number of LODES low-income workers plus the unemployed population and NILF population from ACS estimates. Again, these come from the 16+ "universe" These numbers can be retrieved at the block group level. 
+
+Some considerations when adopting this approach:
+  - Using complete populations will inevitably yield accessibility estimates that are mostly less than 1, and the weighted average is capped at the labor force participation rate (for the low-income case, a variant of labor force participation rate). 
+  - ACS 16+ population data and BLS labor force participation rates do not fully include "institutionalized" populations (recently started to include). Very much a normative assumption given the prison-industrial complex at play in the region (e.g. Million Dollar Blocks project). We use these numbers for ease of comparison and ease of data retrieval. 
+  - CPS, used by the BLS, is more accurate, but does not give geographically granular data, the focus of this thesis. 
+  - I set an arbitrarily (conservatively) large bounding box for all of these data for the sanity of my laptop, including most of the cities (labor+ population centers) that are within an hour's travel of the region of interest (4-county region)
+    - This bounding box limits the scope of the analysis to Michigan, making data retrieval easier (e.g. LODES). (Ohio is quite far!). Only around 8000 of workers in the MSA work in Ohio (OnTheMap), so this is probably acceptable.  
+  - Census API documentation is extremely helpful: https://api.census.gov/data/2018/acs/acs5/groups.html
+    - Before going there though, verify tables and access via data.census.gov. Can check the "universe" here in words.
+  - Mixing years between LODES' 2017, ACS 2018 estimates, and 2020 transport network. This is acceptable, given that these numbers don't change much over time and that we are aiming for already abstracted/loose estimates. 
+
+## First case: retrieve total 16+ population dataset
+```{r}
+#Region bounding box, set alongside OSM extract that you use during OTP or Conveyal setup. Use https://boundingbox.klokantech.com/ in OTP documentation. 
+bounding_box <- st_read("R_data/bounding_box.json") #create this file in your favorite GIS software, or manually by editing values in JSON
+my_crs = crs(bounding_box) #proj4string here. WGS84 is web mercator. Not sure but helps with the management
+
+# TO DO if want to make even more exact (though margins of error are far greater than current errors)
+### do not use [bounding_box,] as a selection tool. Instead, take a full list of block groups by going to TIGER dataset, executing bounding box operation on that to get full GEOID list for the region, and then do an outer join via "all=TRUE" option in merge(). Account for NA's created by the outer join. 
+
+# Get 16+ population opportunity dataset for 2018 using ACS 5-year estimate. 
+region_population <- get_acs(
+  geography = "block group",
+  variables = "B23025_001E", #total population over 16
+  state = "Michigan",
+  year = 2018,
+  geometry = TRUE
+  #county = c("Wayne", "Oakland", "Macomb", "Washtenaw"), # get for whole region, clip by bounding box. 
+)
+
+# Web Mercator's EPSG code is 3857. Set CRS's to be the same. 
+region_population = region_population %>% st_transform(crs = my_crs)
+
+#select features intersecting bounding box
+trim_population <- region_population[bounding_box,]
+trim_population <- trim_population %>%
+  select(GEOID, estimate, geometry)
+trim_population$GEOID <- as.character(trim_population$GEOID)
+```
+
+## Second case: retrieve low income population dataset
+```{r message=FALSE, warning=FALSE}
+lowinc_population <- grab_lodes(state = "mi", 
+           year = 2017, 
+           lodes_type = "rac", 
+           job_type = "JT00", 
+           segment = "SE01", 
+           state_part = "main", 
+           agg_geo = "bg")
+
+lowinc_population$GEOID <- lowinc_population$h_bg
+
+#Should be an inner join
+lowinc_pop <- merge(trim_population, lowinc_population, by = "GEOID")
+lowinc_pop <- lowinc_pop[c("GEOID", "estimate", "C000", "geometry")] #select without pipes
+
+names(lowinc_pop)[names(lowinc_pop) == 'estimate'] <- 'pop16over' #rename without pipes/dplyr
+names(lowinc_pop)[names(lowinc_pop) == 'C000'] <- 'lowinc_workers'
+
+#ADD IN SECOND BIN
+mid_pop <- grab_lodes(state = "mi", 
+           year = 2017, 
+           lodes_type = "rac", 
+           job_type = "JT00", 
+           segment = "SE02", # MIDDLE BIN
+           state_part = "main", 
+           agg_geo = "bg")
+mid_pop <- mid_pop %>% select(GEOID = h_bg, mid_workers = C000)
+
+lowinc_pop <- mid_pop %>% merge(lowinc_pop, by = "GEOID")
+
+##########
+#Unemployed population from ACS. 3013001 employed in region, 223667 unemployed. (reference)
+unemp_population <- get_acs(
+  geography = "block group",
+  variables = c("B23025_005E"), #unemp variable from API documentation
+  state = "Michigan",
+  year = 2018,
+  geometry = TRUE
+)
+# Web Mercator's EPSG code is 3857. Set CRS's to be the same. 
+unemp_population = st_transform(unemp_population, crs = my_crs)
+
+#select features intersecting bounding box
+unemp_trim_population <- unemp_population[bounding_box,]
+unemp_trim_population <- unemp_trim_population %>%
+  select(GEOID, unemp = estimate) %>%
+  st_drop_geometry() #drop geometry for data storage, reference by GEOID
+unemp_trim_population$GEOID <- as.character(unemp_trim_population$GEOID)
+
+#########
+#Include NILF population as well
+nilf_pop <- get_acs(
+  geography = "block group",
+  variables = c("B23025_007E"), #NILF variable
+  state = "Michigan",
+  year = 2018,
+  geometry = TRUE
+)
+nilf_pop = st_transform(nilf_pop, crs = my_crs)
+
+#select features intersecting bounding box
+nilf_trim_pop <- nilf_pop[bounding_box,]
+nilf_trim_pop <- nilf_trim_pop %>%
+  select(GEOID, nilf = estimate) %>%
+  st_drop_geometry() 
+nilf_trim_pop$GEOID <- as.character(nilf_trim_pop$GEOID)
+
+#Compile unemp and nilf pops into dataframe. create low_workforce variable
+lowinc_compiled <- merge(lowinc_pop, unemp_trim_population, by = "GEOID") #slight misnomer, includes the all population too
+lowinc_compiled <- merge(lowinc_compiled, nilf_trim_pop, by = "GEOID")
+lowinc_compiled$low_workforce <- lowinc_compiled$lowinc_workers + lowinc_compiled$unemp + lowinc_compiled$nilf + lowinc_compiled$mid_workers
+```
+
+## Adjust PLF estimates by vehicle availability
+Accessibility analyses adjust for vehicle ownership to account for transit dependent populations. In general they assume a $\alpha_k$ by the percentage of households with more than 1 vehicle, available via ACS data at the block group level (as households). To differentiate the all and low-income cases, we apply a multiplier of 0.898 (as in Urban Institute), the ratio of car commuters under the poverty line to the total population, as a proxy for how much less low-income workers may own a vehicle within the block group (as opposed to applying the same measure as the total average). 
+
+Some helpful links:
+- Use vehicles available per household percentages from this table. https://api.census.gov/data/2018/acs/acs5/groups/B25044.html
+  - (To confirm, the universe is occupied households!) https://data.census.gov/cedsci/table?q=TENURE%20BY%20VEHICLES%20AVAILABLE%09&g=1500000US261635001001&tid=ACSDT5Y2018.B25044&hidePreview=false
+- Remember to check for NA's, and address using Urban Institute's procedure. Basically, set `noveh_perc` to the MSA average no-vehicle ownership rates. 
+
+The output is PLF estimates pre-weighted by vehicle availability, and so divided between car and transit numbers. 
+
+```{r message=FALSE, warning=FALSE}
+#First get the numbers for rent and owner-occupied households (manually aggregate both numbers)
+noveh_own <- get_acs(
+  geography = "block group",
+  variables = c("B25044_003E"),
+  state = "Michigan",
+  year = 2018,
+  geometry = FALSE
+)
+noveh_rent <- get_acs(
+  geography = "block group",
+  variables = c("B25044_010E"),
+  state = "Michigan",
+  year = 2018,
+  geometry = FALSE
+)
+#Trim to census blocks of interest and merge and aggregate. 
+noveh_own <- noveh_own %>% 
+  filter(GEOID %in% lowinc_compiled$GEOID) %>% #these are the census block groups we care about-- with people!
+  select(GEOID, estimate) %>% 
+  rename(noveho = estimate)
+noveh_rent <- noveh_rent %>% 
+  filter(GEOID %in% lowinc_compiled$GEOID) %>% 
+  select(GEOID, estimate) %>% 
+  rename(novehr = estimate)
+noveh <- noveh_own %>% merge(noveh_rent, by = "GEOID") %>% mutate(noveh = noveho + novehr) %>% select(GEOID, noveh)
+
+households <- get_acs(
+  geography = "block group",
+  variables = c("B25044_001E"),
+  state = "Michigan",
+  year = 2018,
+  geometry = FALSE
+)
+households <- households %>% 
+  filter(GEOID %in% lowinc_compiled$GEOID) %>% 
+  select(GEOID, estimate) %>% 
+  rename(households = estimate)
+
+lowinc_compiled <- merge(lowinc_compiled, noveh, by = "GEOID")
+lowinc_compiled <- merge(lowinc_compiled, households, by = "GEOID")
+names(lowinc_compiled)[names(lowinc_compiled) == '16+population'] <- 'pop16over'
+
+lowinc_compiled <- lowinc_compiled %>% 
+  mutate(noveh_perc = noveh/households) 
+#Check for NA's! These are cases where both noveh and households are 0, leading to 0/0
+# lowinc_compiled[which(is.na(lowinc_compiled$noveh_perc)),]
+# change to MSA value here https://data.census.gov/cedsci/table?q=B25044&g=310M500US19820&tid=ACSDT5Y2018.B25044&hidePreview=true
+lowinc_compiled$noveh_perc[which(is.na(lowinc_compiled$noveh_perc))] = (43039 + 107301)/1690744
+
+#TODO: using 0.898 makes this overdetermined (i.e. sums won't add up to prev number). Okay for access to population (rough numbers) but will be corrected in dot density map. 
+lowinc_compiled <- lowinc_compiled %>%
+  mutate(cars16over = (1-noveh_perc)*pop16over,
+         trans16over = noveh_perc*pop16over,
+         carslowwf = (1-noveh_perc)*0.898*low_workforce,
+         translowwf = (1-(1-noveh_perc)*0.898)*low_workforce
+         )
+#clean dataset for writing out
+compiled <- lowinc_compiled %>%
+  select(GEOID, cars16over, trans16over, carslowwf, translowwf, geometry)
+
+#Final Write
+st_write(compiled, "R_data/plf.shp", delete_dsn = TRUE)
+```
+
+Plug in the four shapefiles into Conveyal Analysis to obtain access to population layers. We use the most conservative configuration for the access to population layer -- all population accessed within 60 minutes under a 50 percentile during peak access. The further accessibility analyses will break down by the 24 scenarios-- with buttons to toggle hopefully!!
+
+This competition impedence function makes sense, given that:
+Table B08303 --> 92.7% of people in the Detroit MSA have commutes within 60 min. Would capture most of the competition by using this cutoff. 33.9% of people in the MSA have commutes between 30 and 60, would be foolish to exclude these as part of the "competition". For "PEAK" we use a weekday (2/5/20) 5-7PM window for access to population, and a 7-9AM window for the final accessibility calculation. OFFpeak is 12-2pm. CAR mode is unaffected by time of day given OSM. 
+
+https://data.census.gov/cedsci/table?q=travel%20time&g=1500000US260992140001_310M500US19820&tid=ACSDT5Y2018.B08303&hidePreview=true
+
+Another check is to see if using 5-7PM as peak access to population transportation makes sense. This should be fine given the express route prioritization of the bus agencies, and that's all that needs to be considered. 
+
+-------------------------------------------------------------------------------
+# Processing access to population geotiff's into adjusted job density layer
+
+## Setting up jobs layer
+First get a jobs shapefile and use Conveyal to convert to geotiff comparable to other geotiff's. We will use the access to population rasters to adjust this jobs raster into a jobs/population raster. 
+```{r}
+#Geometries of the census block groups for the whole region
+region_geom <- compiled[c("GEOID", "geometry")]
+
+#Retrieve LODES WAC data for each geometry. 
+alljobs <- grab_lodes(state = "mi", 
+           year = 2017, 
+           lodes_type = "wac", 
+           job_type = "JT00", 
+           segment = "S000", 
+           state_part = "main", 
+           agg_geo = "bg")
+
+alljobs <- alljobs %>%
+  dplyr::select(GEOID = w_bg, alljobs = C000) %>%
+  merge(region_geom,  by = "GEOID")
+
+lowjobs <- grab_lodes(state = "mi", 
+           year = 2017, 
+           lodes_type = "wac", 
+           job_type = "JT00", 
+           segment = "SE01", 
+           state_part = "main", 
+           agg_geo = "bg")
+lowjobs <- lowjobs %>%
+  dplyr::select(GEOID = w_bg, lowjobs = C000) %>%
+  filter(GEOID %in% region_geom$GEOID)
+midjobs <- grab_lodes(state = "mi", 
+           year = 2017, 
+           lodes_type = "wac", 
+           job_type = "JT00", 
+           segment = "SE02", 
+           state_part = "main", 
+           agg_geo = "bg")
+midjobs <- midjobs %>%
+  dplyr::select(GEOID = w_bg, midjobs = C000)%>%
+  filter(GEOID %in% region_geom$GEOID)
+
+jobs_to_shp <- merge(alljobs, lowjobs, by = "GEOID", all = TRUE) #outer join to be careful of geometries. assume NA's = 0
+jobs_to_shp <- jobs_to_shp %>% merge(midjobs, by = "GEOID", all = TRUE)
+jobs_to_shp$lowjobs[is.na(jobs_to_shp$lowjobs)] = 0
+jobs_to_shp$midjobs[is.na(jobs_to_shp$midjobs)] = 0
+
+jobs_to_shp$lowjob = jobs_to_shp$lowjobs + jobs_to_shp$midjobs
+
+jobs_to_shp <- jobs_to_shp %>% select(GEOID, alljobs, lowjob, geometry)
+st_write(jobs_to_shp, "R_data/jobdens.shp", delete_dsn = TRUE)
+#Convert to raster in Conveyal
+```
+
+Create an eligible region raster-- summing together isochrones within the contiguous street network in Conveyal. This helps with visualization and also keeping all of the rasters to the reachable region. 
+```{r}
+#Find eligible raster area within a single network
+library(raster)
+eligible1 = raster("R_data/reach_rasters/1.geotiff")
+eligible2 = raster("R_data/reach_rasters/2.geotiff")
+eligible3 = raster("R_data/reach_rasters/3.geotiff")
+eligible = eligible1 + eligible2 + eligible3
+eligible[eligible == 0] <- NA
+eligible[eligible > 0] <- 1
+```
+
+## Create adjusted job density raster
+Finally, output an adjusted job density raster using the 60 min and 50percentile, peak access to population raster as input. This is the maximally-competitive scenario. Should have two outputs, for each of the two PLF cases. 
+
+Reprojection Notes: https://gis.stackexchange.com/questions/338522/to-project-or-not-to-project-extracting-raster-values-with-r
+  - Basically, reprojecting rasters results in loss of information. Be careful and adjust accordingly. See comments in code. 
+
+```{r message=FALSE, warning=FALSE}
+#sum rasters together
+library(raster)
+library(rgdal)
+
+#Leftover file name loops for individual for loop. Instead just set to scenario of interest. 
+pops = c('all', 'low')
+percs = c('P50')
+cutoffs = c('C60')
+peaks = c('PEAK')
+
+#was initially doing individualized competitive accessibility. Instead now using a singular access to population raster as a comparable base. 
+i=1
+for(pop in pops){
+  #Upload LODES shapefile and then reload
+  file_jobs = paste0("R_data/jobsraw_rasters/",pop,"jobsraw.tiff")
+  jobs_raster = raster(file_jobs)*eligible #eligible excludes islands from the transportation network
+  #project to WGS84 coordinates for eventual output, take any ol' WGS84 projection. "+proj=longlat +datum=WGS84 +no_defs" project jobs raster too
+  #the bilinear interpolation in the reprojection causes negative numbers. These occur near the 0 points. Reprojecting in this way causes a slight loss of information, though negligible. To mitigate the effects, scale up all to ensure the sum of all jobs leads to the previous sum. Can experiment with rasterToPoints settings for more exact but more computationally intensive.  https://stackoverflow.com/questions/46717219/re-projecting-a-spatialpointsdataframe-does-not-change-the-extent. Will not match the input sum as Conveyal clips to the region. 
+  sum_jobs = cellStats(jobs_raster, sum)
+  jobs_raster = jobs_raster %>% projectRaster(crs=crs(bounding_box))
+  jobs_raster[jobs_raster<=0] <- 0
+  jobs_raster = jobs_raster*(sum_jobs/cellStats(jobs_raster, sum)) #readjust to jobs total pre-projection
+  
+  for(perc in percs){
+    for(cutoff in cutoffs){
+      for(peak in peaks){
+        #Filenames
+        file_auto = paste0("R_data/access_to_pop_rasters/adjpop_", pop, "pop_CAR_", perc, "_", cutoff, ".tiff")
+        file_trans = paste0("R_data/access_to_pop_rasters/adjpop_", pop, "pop_TRANS",peak,"_", perc, "_", cutoff, ".tiff")
+        auto_raster = raster(file_auto)
+        trans_raster = raster(file_trans)
+        pop_raster = (auto_raster + trans_raster)*eligible
+        #dividing by 0 will cause problems, multiply by eligibility raster as well. Other small values shouldn't affect those in the 4 county region so much, as having low access to population on the first calculation means low accessibility in the second calculation as well. Filter below 100 to filter out abnormally large values, residues of raster calculation process.
+        pop_raster[pop_raster <= 100] = NA
+        pop_raster = pop_raster %>% projectRaster(crs=crs(bounding_box))
+        #multiply by a large number, and divide later, given that Conveyal rounds to integer
+        adj_raster = jobs_raster/(pop_raster)*10^8
+        
+        file_adj = paste0("R_data/jobsadj_rasters/jobsadj_",pop,"_",peak,"_",perc,"_",cutoff,".tiff")
+        writeRaster(adj_raster, file_adj, overwrite = TRUE)
+
+        csvout = adj_raster %>% rasterToPoints()
+        file_csv = paste0("R_data/jobsadj_rasters/jobsadj_",pop,"_",peak,"_",perc,"_",cutoff,".csv")
+        write.csv(csvout, file_csv, row.names = FALSE)
+        print(paste0("Progress: Processed ",i," of 2"))
+        i = i+1
+      }
+    }
+  }
+}
+
+```
+
+----------------------------------------
+# Displaying Results
+
+## Creating a dot density map
+https://blog.cultureofinsight.com/2017/06/building-dot-density-maps-with-uk-census-data-in-r/
+https://www.maartenlambrechts.com/2018/02/13/one-person-one-dot-maps-and-how-to-make-them.html
+https://github.com/mountainMath/dotdensity/blob/master/vignettes/why_dotdensity.Rmd
+
+
+Do this in `QGIS` rather than `R` for possibly quicker runtimes.
+```{r}
+
+```
+
+
+## 
+
+## Output to MB Tiles with 
+
+
+
+# Sandbox and test commands
+```{r}
+#TEST
+test_raster = raster("R_data/results_rasters/test.tiff")
+test = raster("R_data/results_rasters/test_pop.tiff")
+
+#Check: should be jobs/total population
+cellStats(test_raster*test/1000, sum)/cellStats(test,sum)
+sum(jobs_to_shp$alljobs)/cellStats(test,sum)
+
+
+head(sort(cellStats(pop_raster, unique), decreasing = FALSE), 100)
+```
+
+
+
+
+
+
+
+
+
+

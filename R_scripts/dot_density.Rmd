@@ -1,0 +1,507 @@
+---
+title: "Accessibility Visualization"
+output: html_notebook
+---
+
+New notebook-- don't need any variables from previous analysis
+
+# Creating the dots for dot density
+In order to make use of all the information we have, we will use 2018 5-year ACS population estimates at the block group level, and distribute dots according to the distribution within each block group provided by the 2010 Dicennial Census (block level). 
+
+From here on out, we visualize the four-county region (for plotting in the future)
+
+Check UI design in OneNote
+Dicennial census api:
+- https://api.census.gov/data/2010/dec/sf1/groups/P11.html
+
+```{r}
+library(tidycensus)
+library(sf)
+library(dplyr)
+library(ggplot2)
+library(tictoc)
+library(tidyr)
+library(mapboxapi)
+
+# Get population data for Census tracts in four-county region. 
+# Use 18+ race data to set the distribution. 
+semi_population <- get_decennial(
+  geography = "block",
+  variables = c("P011001", #total population
+                "P011006"),#Black, non-hispanic population
+  state = "Michigan",
+  year = 2010,
+  geometry = TRUE,
+  county = c("Wayne", "Oakland", "Macomb", "Washtenaw"),
+  keep_geo_vars = TRUE
+)
+semi_population <- semi_population %>% spread(variable, value) #turn from long format to wide format
+semi_population <- semi_population %>% mutate(nonblack = P011001 - P011006) %>% rename(total = P011001, black = P011006)
+semi_population <- semi_population %>% filter(AWATER10/(AWATER10+ALAND10)<= 0.9) #remove all-water census blocks to prevent dots from appearing there. 
+
+semi_population <- semi_population %>% select(GEOID, total, black, nonblack, geometry)
+
+#Adjust numbers to 2018 numbers using ACS 2018 estimates. 
+# Get 16+ population opportunity dataset for 2018 using ACS 5-year estimate. 
+acs_pop <- get_acs(
+  geography = "block group",
+  variables = c("B23025_001E", #total population over 16
+                "B03002_001E", #Total population (all)
+                "B03002_004E" #Total Black non-hispanic population
+                ),
+  state = "Michigan",
+  year = 2018,
+  geometry = TRUE,
+  county = c("Wayne", "Oakland", "Macomb", "Washtenaw")
+)
+
+acs_pop <- acs_pop %>% select(-moe) %>% spread(variable, estimate)
+acs_pop <- acs_pop %>% mutate(black = round(B03002_004/B03002_001*B23025_001)) #come up with a number for 16+ Black population
+acs_pop$black[is.na(acs_pop$black)] = 0
+
+semi_population$all2018 = 0
+semi_population$black2018 = 0
+semi_population$bg = 0
+#Loop through each block group and set population for black and nonblack (126 sec)
+tic()
+pb <- winProgressBar(title = "Dot-ify", min = 0,
+                      max = nrow(acs_pop), width = 300)
+mysample <- function(x, size) x[sample(length(x), size = size)] #sampling compatible with 1 element
+for(bg in acs_pop$GEOID){
+  blocks = which(grepl(bg, semi_population$GEOID)) #block indexes within block group
+  semi_population$bg[blocks] = bg #block group tag
+  
+  sum_block2010 = sum(semi_population$total[blocks])
+  sum_bg2018 = acs_pop$B23025_001[acs_pop$GEOID == bg]
+  semi_population$all2018[blocks] = round(semi_population$total[blocks]/sum_block2010*sum_bg2018) #close enough with rounding
+  semi_population$all2018[is.na(semi_population$all2018)] = 0
+  # make sure that total all populations add up to block group total
+  while(sum(semi_population$all2018[blocks]) != sum_bg2018){
+    random = mysample(blocks[semi_population$all2018[blocks] != 0], size = 1) #only change those that are not 0
+    if(sum(semi_population$all2018[blocks]) < sum_bg2018){
+      semi_population$all2018[random] = semi_population$all2018[random] + 1
+    } else {
+      semi_population$all2018[random] = semi_population$all2018[random] - 1
+    }
+  }  
+  
+  ####Black pop's 
+  sum_block2010 = sum(semi_population$black[blocks])
+  sum_bg2018 = acs_pop$black[acs_pop$GEOID == bg]
+  semi_population$black2018[blocks] = round(semi_population$black[blocks]/sum_block2010*sum_bg2018)
+  #change NA's to 0 (div by 0). Inefficient to put here but it's okay. 
+  semi_population$black2018[is.na(semi_population$black2018)] = 0  
+  
+  #very inefficiently accounting for where the above makes Black population greater than all. 
+  while(any(semi_population$black2018 > semi_population$all2018)){
+    semi_population$black2018[semi_population$black2018 > semi_population$all2018] = semi_population$black2018[semi_population$black2018 > semi_population$all2018] - 1    
+  }
+
+  #a very roundabout way of making sure total Black populations add up to prescribed bg numbers, avoiding biases in data by sampling
+  while(sum(semi_population$black2018[blocks]) != sum_bg2018){
+    if(sum(semi_population$black2018[blocks]) < sum_bg2018){
+      random = mysample(blocks[semi_population$all2018[blocks] > semi_population$black2018[blocks]], size = 1) #only bump up black pop if there's room in allpop
+      semi_population$black2018[random] = semi_population$black2018[random] + 1
+    } else {
+      random = mysample(blocks[semi_population$black2018[blocks] > 0], size = 1) #only bump down black pop if above 0
+      semi_population$black2018[random] = semi_population$black2018[random] - 1
+    }
+  }
+  setWinProgressBar(pb, which(acs_pop$GEOID == bg), title=paste( round(which(acs_pop$GEOID == bg)/nrow(acs_pop)*100, 4),
+                                    "% done"))
+}
+close(pb)
+
+toc()
+
+semi_population$nonblack2018 = semi_population$all2018 - semi_population$black2018
+semi_population <- semi_population %>% mutate(nonblack2018 = round(nonblack2018), black2018 = round(black2018))
+#checks
+any(semi_population$nonblack2018 < 0) #FALSE is good
+any(semi_population$black2018 < 0)#FALSE good
+any(semi_population$all2018 < 0)#FALSE good
+sum(semi_population$all2018) - sum(acs_pop$B23025_001) # 0 good
+sum(semi_population$black2018) - sum(acs_pop$black) # 0 good
+
+st_write(semi_population, "R_data/dot_density/blocks.shp", delete_dsn = TRUE)
+semi_population <- read_sf("R_data/dot_density/blocks.shp")
+semi_population <- semi_population %>% rename(black2018 = blc2018, nonblack2018 = nnb2018)
+
+# #Setting up big dotifying (TOO LONG, USE QGIS as in https://www.maartenlambrechts.com/2018/02/13/one-person-one-dot-maps-and-how-to-make-them.html).
+# #takes a minute or two then... very efficient algo
+
+
+# dots = st_sfc()
+# total = nrow(semi_population)
+# 
+# tic()
+# pb <- winProgressBar(title = "Dot-ify", min = 0,
+#                      max = total, width = 300)
+# #Run big loop to get total universe dots for each census block. 
+# for(i in 1:total){
+#   dot_block <- suppressMessages(st_sample(
+#     semi_population[i,],
+#     type = "random",
+#     size = semi_population$all2018[i]
+#     ))
+#   dots = c(dots, dot_block)
+#   setWinProgressBar(pb, i, title=paste( round(i/total*100, 4),
+#                                     "% done"))
+# }
+# close(pb)
+# 
+# toc(log = TRUE) #would take 174 hours
+
+```
+With all dots in shapefile form, I will now simulate accessibility for each dot, 
+Black dots + nonblack dots --> import to sf --> set big race column --> append sf's via rbind (no more block specific data)
+
+--> spatial join all dots to census block groups --> %>% slice(sample(1:n)) to randomize
+
+for loop by block group to simulate transit vs. not (set round numbers), same for low inc numbers (from lowinc_compiled in other script, downloaded as "R_data/lowinc_compiled.geojson")
+
+combine results rasters --> set 12 values(3 times, 2 percentiles, 2 peak/off, 2 low/all) of each randomized point by their transit prop
+
+
+
+```{r}
+#complete block group data
+lowinc_compiled = read_sf("R_data/lowinc_compiled.geojson") #take from population datasets from Conveyal input
+lowinc_compiled = lowinc_compiled %>%
+  as.data.frame() %>% #to get rid of geometry
+  select(GEOID, pop16over, low_workforce, noveh_perc)
+lowinc_compiled = merge(x = lowinc_compiled, y = acs_pop, by = "GEOID", all.y = TRUE) #one-sided join to keep all acs_pop groups
+#check if merge is true: which(lowinc_compiled$pop16over != lowinc_compiled$B23025_001)
+lowinc_compiled = lowinc_compiled %>% select(-B03002_001, -B03002_004, -pop16over) %>% rename(pop16over = B23025_001)
+lowinc_compiled = lowinc_compiled %>% st_as_sf() #turn back into sf
+lowinc_compiled$pop16over[is.na(lowinc_compiled$pop16over)] = 0
+lowinc_compiled$low_workforce[is.na(lowinc_compiled$low_workforce)] = 0
+lowinc_compiled$noveh_perc[is.na(lowinc_compiled$noveh_perc)] = 0
+
+#check more to get rid of NA's which(is.na(lowinc_compiled$low_trans))
+
+#0.898 constraint does not solve here... instead conservatively assume that within a block group, low income and higher income folks own vehicles at the same block group rate. (though this could vary significantly between block groups)
+lowinc_compiled = lowinc_compiled %>%
+      mutate(total_trans = round(noveh_perc*pop16over)) %>%
+      mutate(total_car = pop16over - total_trans) %>%
+      mutate(car_perc = 1-noveh_perc) %>%
+      mutate(low_car = round(car_perc*low_workforce)) %>% #must be positive
+      mutate(low_trans = low_workforce - low_car) %>% # must be positive
+      mutate(high_car = round(car_perc*pop16over - low_car)) %>% # must be positive
+      mutate(high_trans = pop16over - high_car - low_trans - low_car) #not necessarily positive
+imbalance = 0
+for(i in 1:nrow(lowinc_compiled)){
+  gnarly_num = lowinc_compiled$high_trans[i] #what to do with this negative num
+  if(gnarly_num < 0){
+    lowinc_compiled$low_trans[i] = lowinc_compiled$low_trans[i] + gnarly_num #take away excess transit low inc riders
+    lowinc_compiled$low_car[i] = lowinc_compiled$low_car[i] - gnarly_num #restore low_workforce balance
+    lowinc_compiled$high_car[i] = lowinc_compiled$high_car[i] + gnarly_num # restore total car balance
+    lowinc_compiled$high_trans[i] = lowinc_compiled$high_trans[i] - gnarly_num #get high_trans back to 0, restore total pop balance
+    imbalance = imbalance + gnarly_num
+    }
+}#within bg noveh_percent is preserved. shifts balance slightly to lowtrans vs. hightrans (like the 0.898 adjustment)
+
+#Archived attempt:
+    # #Create counts for high_trans, low_trans, high_car, low_car
+    # #Constraints: for each bg (high_trans+low_trans)/(pop16over)~=noveh_perc
+    # #             for each bg (high_trans + low_trans + high_car + low_car) == pop16over
+    # #             for each bg (low_trans/low_workforce) ~= (1-(1-(noveh_perc)*0.898) # OVER CONSTRAINING, start here, loosen later
+    # #             for each bg low_trans + low_car = low_workforce
+    # #             all values must be >0 <- OVERDETERMINED
+    # lowinc_compiled = lowinc_compiled %>%
+    #   mutate(total_trans = round(noveh_perc*pop16over)) %>% 
+    #   mutate(total_car = pop16over - total_trans) %>%
+    #   mutate(car_perc = 1-noveh_perc) %>%
+    #   mutate(low_car = round(0.898*car_perc*low_workforce)) %>% #must be positive
+    #   mutate(low_trans = low_workforce - low_car) %>% # must be positive
+    #   mutate(high_car = round(car_perc*pop16over - low_car)) %>% # must be positive
+    #   mutate(high_trans = pop16over - high_car - low_trans - low_car) #not necessarily positive
+    # #overdetermined with the >0 constraint, but it is necessary. Reallocate to preserve the total sum percentage differences, without the individual block group 0.898 constraint (instead do regional 0.898 constraint)
+    # imbalance = 0
+    # for(i in 1:nrow(lowinc_compiled)){
+    #   gnarly_num = lowinc_compiled$high_trans[i] #what to do with this negative num
+    #   if(gnarly_num < 0){
+    #     lowinc_compiled$low_trans[i] = lowinc_compiled$low_trans[i] + gnarly_num #take away excess transit low inc riders
+    #     lowinc_compiled$low_car[i] = lowinc_compiled$low_car[i] - gnarly_num #restore low_workforce balance
+    #     lowinc_compiled$high_car[i] = lowinc_compiled$high_car[i] + gnarly_num # restore total car balance
+    #     lowinc_compiled$high_trans[i] = lowinc_compiled$high_trans[i] - gnarly_num #get high_trans back to 0, restore total pop balance
+    #     imbalance = imbalance + gnarly_num
+    #     }
+    # } #now, total low transit rate is too low by `imbalance` (sum of all low_trans is lower than it should be). Randomly reallocate from positive high_trans to recorrect. Takes around a minute. 
+    # sumlowcar_target = sum(lowinc_compiled$total_car)/sum(lowinc_compiled$pop16over) * 0.898 * sum(lowinc_compiled$low_workforce)
+    # sumlowtrans_target = sum(lowinc_compiled$low_workforce) - sumlowcar_target
+    # imbalance = sum(lowinc_compiled$low_trans) - sumlowtrans_target #how much lower is it than ideal? this new imbalance should be close to old one
+    # for(i in 1:abs(imbalance)){
+    #   pick = sample(which(lowinc_compiled$high_trans > 0), size = 1) #do incrementally, as to not deplete any past 0
+    #   lowinc_compiled$low_trans[pick] = lowinc_compiled$low_trans[pick] + 1 #reassign high transit riders to low
+    #   lowinc_compiled$high_trans[pick] = lowinc_compiled$high_trans[pick] - 1
+    #   lowinc_compiled$low_car[pick] = lowinc_compiled$low_car[pick] - 1 #restore low_workforce balance
+    #   lowinc_compiled$high_car[pick] = lowinc_compiled$high_car[pick] + 1 # restore total car balance
+    # }
+
+#final check constraints
+which(lowinc_compiled$pop16over != lowinc_compiled$low_car +lowinc_compiled$high_car+lowinc_compiled$low_trans+lowinc_compiled$high_trans)
+
+which(lowinc_compiled$high_trans < 0)
+
+range(lowinc_compiled$noveh_perc - (lowinc_compiled$high_trans + lowinc_compiled$low_trans)/lowinc_compiled$pop16over, na.rm = TRUE) #small? noveh_percents are pretty much the same? yes!
+
+(sum(lowinc_compiled$low_car)/sum(lowinc_compiled$low_workforce)) / (sum(lowinc_compiled$low_car +lowinc_compiled$high_car  )/sum(lowinc_compiled$pop16over)) ## would be problematic if equaled Urban Institute's 0.898. 0.98 instead. 
+
+#... that was the most grueling code section in the world. Recorrections for this are so hard....
+#set to new variable
+counts = lowinc_compiled
+
+save(counts, file = "R_data/counts.RData")
+```
+
+Now join in the dots
+
+
+```{r}
+#Read in QGIS shapefiles
+dots_black <- read_sf(dsn = "./R_data/dot_density/dots_black.shp")
+dots_nonblack <- read_sf(dsn = "./R_data/dot_density/dots_nonblack.shp")
+
+dots_black$race = 'black'
+dots_nonblack$race = 'nonblack'
+
+#append into 1 sf (couple seconds)
+dots = rbind(dots_black, dots_nonblack)
+#For storage, remove variables
+rm(dots_black, dots_nonblack)
+
+#spatial join dots to block group GEOID. Took 137 seconds
+tic()
+dots_label <- st_join(dots, left = TRUE, semi_population["bg"]) # join points
+toc()
+
+#get leftovers with nearest feature join
+undone = which(is.na(dots_label$GEOID))
+dots_label[undone,] <- st_join(dots[undone,], left = TRUE, counts["GEOID"], join = st_nearest_feature) # join points
+
+#randomize order of dots (49 sec)
+tic()
+dots_label <- dots_label %>% slice(sample(1:nrow(dots_label)))
+toc()
+
+tic()
+dots_label$mode <- ""
+dots_label$inc <- ""
+marks <- rep(1,5) #initialize
+err_sum = 0
+pb <- winProgressBar(title = "Dot-ify", min = 0,
+                      max = nrow(counts), width = 300)
+#then loop through by block group to assign each as lowinc or not, and as transit dependent or not. 850 sec
+for(bg in counts$GEOID){
+  dits = which(dots_label$bg == bg) #indices of dots of interest
+  #four cases: assign based on counts
+  marks[2] = counts$low_car[counts$GEOID == bg] # 1st section is low car
+  marks[3] = marks[2] + counts$high_car[counts$GEOID == bg] # 2nd section is high car
+  marks[4] = marks[3] + counts$low_trans[counts$GEOID == bg] #3rd section is low trans
+  marks[5] = marks[4] + counts$high_trans[counts$GEOID == bg] #4th section is high trans
+  if(marks[5] != length(dits)){
+    i = marks[5] - length(dits)
+    print(paste0(i, " people were approximated in dot density rounding"))
+    err_sum = abs(i) + err_sum
+  }
+  
+  #manually input cases
+  dots_label$mode[dits[marks[1]:marks[2]]] = 'car'
+  dots_label$inc[dits[marks[1]:marks[2]]] = 'low'
+  dots_label$mode[dits[(marks[2]+1):marks[3]]] = 'car'
+  dots_label$inc[dits[(marks[2]+1):marks[3]]] = 'high'
+  dots_label$mode[dits[(marks[3]+1):marks[4]]] = 'transit'
+  dots_label$inc[dits[(marks[3]+1):marks[4]]] = 'low'
+  dots_label$mode[dits[(marks[4]+1):marks[5]]] = 'transit'
+  dots_label$inc[dits[(marks[4]+1):marks[5]]] = 'low'
+  
+  setWinProgressBar(pb, which(counts$GEOID == bg), title=paste( round(which(counts$GEOID == bg)/nrow(counts)*100, 4),
+                                    "% done"))
+}
+close(pb)
+toc()
+
+#randomize plotting order for dots again (49 sec)
+tic()
+dots_label <- dots_label %>% slice(sample(1:nrow(dots_label)))
+toc()
+
+
+```
+
+Build out 12 columns for extraction from rasters
+
+```{r}
+library(raster)
+library(rgdal)
+
+#File name loops
+file_results = ("./R_data/results_rasters/")
+list_results = list.files(file_results)
+
+#Create list of rasters
+#results = suppressWarnings(lapply(paste0(file_results,list_results), raster))
+results = suppressWarnings(stack(paste0(file_results,list_results)))
+#car rasters divide by 10^8, all others divide by 10^10. Takes couple seconds
+for(layer in which(grepl("car", names(results)))){
+  results[[layer]] = results[[layer]]/(10^8)
+}
+for(layer in which(grepl("trans", names(results)))){
+  results[[layer]] = results[[layer]]/(10^10)
+}
+
+#Extraction process can take a while-- though creating a comprehensive dots_label is the goal
+
+#try out fast raster extract from https://pakillo.github.io/rgis/
+library(rgis)
+dots_label = st_transform(dots_label, crs = crs(results)) #takes couple seconds
+
+tic()
+dots_extract = fast_extract(dots_label, results)
+toc() #90 seconds
+
+#transform back into web mercator for export
+mycrs = crs("+proj=longlat +datum=WGS84 +no_defs")
+tic()
+dots_extract = st_transform(dots_extract, crs = mycrs)
+toc() #47.23 sec
+
+
+#STORE FINAL RESULTS for retrieval later. to RData since other formats jump through too many hoops. 
+varlist = names(dots_extract)[7:42]
+write.csv(varlist, "R_data/dot_density/longvarnames.csv")#save var name crosswalk, since shp can't handle long names
+names(dots_extract)[7:42] = paste0("acc", 1:36)
+
+#Assign car values for car people onto the transit values, then delete the car columns
+varlist = read.csv("R_data/dot_density/longvarnames.csv", row.names = 1)$x
+#1:6 onto 7:12, 13:18. 19:24 to 25:30, 31:36. Assume ordered the same way. 
+car_id = which(dots_extract$mode == "car")
+for(i in which(grepl("all_car", varlist))){
+  dots_extract[[6+i+6]][car_id] = dots_extract[[6+i]][car_id] #good thing analogous columns are spaced 6 apart
+  dots_extract[[6+i+12]][car_id] = dots_extract[[6+i]][car_id]
+}
+for(i in which(grepl("low_car", varlist))){
+  dots_extract[[6+i+6]][car_id] = dots_extract[[6+i]][car_id] #good thing analogous columns are spaced 6 apart
+  dots_extract[[6+i+12]][car_id] = dots_extract[[6+i]][car_id]
+}
+#Checks
+dots_extract[head(which(dots_extract$mode == "transit")), 7:20]
+dots_extract[head(car_id), 7:20]
+#delete car columns
+dots_extract = dots_extract[c(1:6, 6+which(grepl("trans", varlist)))]
+library(stringr)
+names(dots_extract)[7:(ncol(dots_extract))] = paste0("res", 1:24)
+write.csv(cbind(paste0("res", 1:24), str_remove(varlist[which(grepl("trans", varlist))], "_trans")), "R_data/dot_density/varnames.csv", row.names = FALSE)#save var name crosswalk, since shp can't handle long names
+
+tic()
+save(dots_extract, file = "R_data/dot_density/results_raw.RData")
+#st_write(dots_extract, "R_data/dot_density/results_raw.shp", delete_dsn = TRUE)
+toc()#174 sec for shapefile, 88 sec for RData
+
+tic()
+load("R_data/dot_density/results_raw.RData")#reload dots_extract
+toc() #17 sec
+
+
+#Decide on breaks
+library(BAMMtools)
+#check for natural breaks -- decide your own! helps with data storage to put into bins. 
+dots_extract[7:42] %>% slice(sample(nrow(dots_extract), 1000)) %>% as.data.frame() %>% select(-geometry) %>% as.matrix() %>% as.vector() %>% getJenksBreaks(5)
+dots_extract[7:42] %>% slice(sample(nrow(dots_extract), 1000)) %>% as.data.frame() %>% select(-geometry) %>% as.matrix() %>% as.vector() %>% quantile(c(0,0.2,0.4,0.6,0.8,1))
+# [1] 0.0000000 0.1261978 0.3418152 0.5256780 0.9434878 # all data
+# 0.0000000000 0.0003257165 0.0014615450 0.0219905334 0.3760514880 0.9765676000
+dots_extract[which(grepl("trans", names(results))) + 6] %>% slice(sample(nrow(dots_extract), 1000)) %>% as.data.frame() %>% select(-geometry) %>% as.matrix() %>% as.vector() %>% getJenksBreaks(5)
+dots_extract[which(grepl("trans", names(results))) + 6] %>% slice(sample(nrow(dots_extract), 1000)) %>% as.data.frame() %>% select(-geometry) %>% as.matrix() %>% as.vector() %>% quantile(c(0,0.2,0.4,0.6,0.8,1))
+# [1] 0.000000000 0.007999921 0.024649846 0.047366006 0.108252096 # transit
+# 0.0000000000 0.0001874467 0.0005166447 0.0014937517 0.0084381726 0.1018312320 
+dots_extract[which(grepl("car", names(results))) + 6] %>% slice(sample(nrow(dots_extract), 1000)) %>% as.data.frame() %>% select(-geometry) %>% as.matrix() %>% as.vector() %>% getJenksBreaks(5)
+dots_extract[which(grepl("car", names(results))) + 6] %>% slice(sample(nrow(dots_extract), 1000)) %>% as.data.frame() %>% select(-geometry) %>% as.matrix() %>% as.vector() %>% quantile(c(0,0.2,0.4,0.6,0.8,1))
+# [1] 0.00310166 0.24715256 0.43212072 0.59521488 0.94641840 # car
+# 0.00259592 0.22768414 0.37177234 0.50146658 0.58414250 0.97656760 
+
+#DECISION: breaks at 0, 0.05, 0.1, 0.2, 0.4, 100. Combines all of the above, getting to normal numbers, and trying to show variation in both transit and car cases. 
+breaks = c(0,0.05,0.1,0.2,0.4,100) # times 2 each is kinda logical
+results_cut <- cut(results, breaks)
+cellStats(results_cut, range) #check to see variation in each raster
+plot(results_cut) #check to see if breaks make sense
+rm(results_cut)
+
+dots_cut = dots_extract
+for(i in 7:ncol(dots_cut)){ #very fast
+  dots_cut[[i]] = cut(dots_cut[[i]], breaks, labels = 1:5)
+}
+
+#Allocate ALL to high income, LOW to low income. 
+
+#create test geojson
+st_write(head(dots_cut, 10000), paste0("R_data/dot_density/resultstest.geojsonl"), delete_dsn = TRUE, driver = "GeoJSONSeq")
+
+#export to geojson for pre-tippecanoe
+tic("FULL")
+splits = c(0,1000000, 2000000, 3000000, nrow(dots_cut))
+for(i in 2:length(splits)){
+  tic("Small")
+  print(paste0("working on... ", splits[i]))
+  st_write(dots_cut[(splits[i-1]+1):splits[i],], paste0("R_data/dot_density/results",i-1,".geojson"), driver = "GeoJSONSeq", delete_dsn = TRUE)
+  toc()
+}
+toc()
+
+```
+## Using Tippecanoe
+(transition to VS Code Notes, bye RStudio!)
+
+# Plots for the paper, BG geojson for hover info. General accessibility scores calculation
+
+```{r}
+#MAKE CDF PLOTS for race
+blackcdf = dots_extract[head(which(dots_extract$race == 'black'), 10000),"res11"]$res9
+allcdf = dots_extract[head(which(dots_extract$race == 'nonblack'), 10000),"res11"]$res9
+
+df <- data.frame(
+  x = c(allcdf, blackcdf),
+  g = gl(2, 10000)
+)
+df$x[is.na(df$x)] = 0
+
+ggplot(df, aes(x, colour = g)) + 
+  stat_ecdf(geom = "line")+
+  scale_colour_hue(name="Population", labels=c('Non-Black','Black')) + 
+  coord_flip() + 
+  ylab("Population Percentile")+
+  xlab("Competitive\nAccessibility") + 
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))+
+  theme(axis.title = element_text(face = "bold"))
+ggsave("R_data/dot_density/cdf_race_60.png", height = 5, width = 5*1.5, dpi = 300)
+
+
+#MAKE CDF PLOTS for income
+lowcdf = dots_extract[head(which(dots_extract$inc == 'low'), 10000),"res21"]$res21
+highcdf = dots_extract[head(which(dots_extract$inc == 'high'), 10000),"res9"]$res9
+
+df <- data.frame(
+  x = c(lowcdf, highcdf),
+  g = gl(2, 10000)
+)
+df$x[is.na(df$x)] = 0
+
+ggplot(df, aes(x, colour = g)) + 
+  stat_ecdf(geom = "line")+
+  scale_colour_hue(name="Population", labels=c('Low-income','High-income')) + 
+  coord_flip() + 
+  ylab("Population Percentile")+
+  xlab("Competitive\nAccessibility") + 
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5))+
+  theme(axis.title = element_text(face = "bold"))
+ggsave("R_data/dot_density/cdf_inc_45.png", height = 5, width = 5*1.5, dpi = 300)
+```
+
+
+
+
+
+
+
+
+
