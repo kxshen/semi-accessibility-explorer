@@ -100,7 +100,15 @@ function App() {
                Link to feedback form
             </Link>
             <br/>
-            <i> Last updated: February 9, 2021</i></Text>
+            <i> Last updated: February 11, 2021</i>
+            <br/>
+            Links to 
+            <Link color="teal.300" href="https://www.dropbox.com/s/yk0w1ifzzprbbqd/shen-tpp-2021.pdf?dl=0">
+                thesis
+              </Link> and <Link color="teal.300" href="https://github.com/kxshen/semi-accessibility-explorer">
+                Github repository
+              </Link>  
+            </Text>
           </Box>
           <Box p={5} shadow="md" borderWidth="1px" m="5px">
             <Heading fontSize="xl">Data Controls</Heading>
@@ -150,7 +158,9 @@ function App() {
               <br/> <br/>
               People with lower job accessibility (<font color="ca0020">redder</font> dots) can reach fewer jobs with more difficulty. Perhaps they live further from jobs or rely on sparse transit service. 
               <br/> <br/>
-              More information about the value of the accessibility index can be found in the technical appendix (link incoming). 
+              More information about the value of the accessibility index can be found in the <Link color="teal.400" href="https://github.com/kxshen/semi-accessibility-explorer">
+                Github repository
+              </Link>. 
             </p>
             <br/>
             <p> Please don't forget to fill out the <Link color="teal.400" href="https://forms.gle/5FqtvY9xLTux55kv6">
@@ -186,15 +196,7 @@ function App() {
 
           {/* Final footer */}
           <Text p={5} shadow="md" borderWidth="1px" m="5px" bg="purple.700" color="white">
-            Made with <span role="img" aria-label="love">💚</span> by <Link color="teal.300" href="http://workofthefuture.mit.edu">MIT WotF</Link> 
-            <br/>
-            <Link color="teal.300" href="https://www.dropbox.com/s/yk0w1ifzzprbbqd/shen-tpp-2021.pdf?dl=0">
-                Thesis
-              </Link>
-            <br/>
-            <Link color="teal.300" href="https://github.com/kxshen/semi-accessibility-explorer">
-                Github repository
-              </Link>        
+            Made with <span role="img" aria-label="love">💚</span> by <Link color="teal.300" href="http://workofthefuture.mit.edu">MIT WotF</Link>       
             <br/>
             Contact: <i>kxshen@mit.edu</i>
           </Text>
