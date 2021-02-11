@@ -1,6 +1,8 @@
 react-ui/node_modules 
 
 react-ui/build
+#no longer need react-ui folder... all of it transferred to client
+react-ui
 
 client/node_modules
 client/git 
