@@ -102,8 +102,7 @@ function App() {
             <br/>
             <i> Last updated: February 11, 2021</i>
             <br/>
-            Links to 
-            <Link color="teal.300" href="https://www.dropbox.com/s/yk0w1ifzzprbbqd/shen-tpp-2021.pdf?dl=0">
+            Links to <Link color="teal.300" href="https://www.dropbox.com/s/yk0w1ifzzprbbqd/shen-tpp-2021.pdf?dl=0">
                 thesis
               </Link> and <Link color="teal.300" href="https://github.com/kxshen/semi-accessibility-explorer">
                 Github repository
