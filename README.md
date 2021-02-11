@@ -6,6 +6,18 @@ Kevin Shen, TPP/MST '21, MIT, kxshen@mit.edu
 
 This technical documentation is meant to be comprehensive, including all of the nitty gritty design choices I've made. For a brief version, see full thesis [here](https://www.dropbox.com/s/yk0w1ifzzprbbqd/shen-tpp-2021.pdf?dl=0). Of course, accepting all help in making this documentation more readable and useful. 
 
+### **Table of Contents**
+  * [1. Gathering Transportation Network Data](#1-gathering-transportation-network-data)
+  * [2. Destination data](#2-destination-data)
+  * [3. Jobs Normalization using Conveyal Analysis](#3-jobs-normalization-using-conveyal-analysis)
+  * [4. Final Accessibility Analysis using Conveyal Analysis](#4-final-accessibility-analysis-using-conveyal-analysis)
+  * [5. Simulating and assigning dots](#5-simulating-and-assigning-dots)
+  * [6. Creating a vector tileset and uploading to Mapbox](#6-creating-a-vector-tileset-and-uploading-to-mapbox)
+  * [7. Creating a user interface using React](#7-creating-a-user-interface-using-react)
+  * [8. Deploying user interface to Heroku](#8-deploying-user-interface-to-heroku)
+  * [9. Final tidbits](#9-final-tidbits)
+---
+
 ## 1. Gathering Transportation Network Data
 First, I chose a bounded region of study to reduce computation time. I chose the four-county region in SE Michigan (Wayne, Oakland, Macomb, Washtenaw) due to its stakes in the RTA. There are other definitions of "SE Michigan" (e.g. SEMCOG defines a seven-county region), but I was more interested in the dynamics immediately surrounding a long political history in Detroit. 
 
