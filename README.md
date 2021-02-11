@@ -2,7 +2,7 @@
 See https://accessmichigan.mit.edu/. 
 
 Feel free to contact me if you're interested in more specifics. 
-Kevin Shen, TPP/MST '21, MIT, kxshen@mit.edu
+Kevin Shen, TPP/MST '21, MIT, kxshen@mit.edu.
 
 This technical documentation is meant to be comprehensive, including all of the nitty gritty design choices I've made. For a brief version, see full thesis [here](https://www.dropbox.com/s/yk0w1ifzzprbbqd/shen-tpp-2021.pdf?dl=0). Of course, accepting all help in making this documentation more readable and useful. 
 
