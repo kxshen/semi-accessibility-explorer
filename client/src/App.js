@@ -188,11 +188,11 @@ function App() {
           <Text p={5} shadow="md" borderWidth="1px" m="5px" bg="purple.700" color="white">
             Made with <span role="img" aria-label="love">💚</span> by <Link color="teal.300" href="http://workofthefuture.mit.edu">MIT WotF</Link> 
             <br/>
-            <Link color="teal.500" href="https://www.dropbox.com/s/yk0w1ifzzprbbqd/shen-tpp-2021.pdf?dl=0">
+            <Link color="teal.300" href="https://www.dropbox.com/s/yk0w1ifzzprbbqd/shen-tpp-2021.pdf?dl=0">
                 Thesis
               </Link>
             <br/>
-            <Link color="teal.500" href="https://github.com/kxshen/semi-accessibility-explorer">
+            <Link color="teal.300" href="https://github.com/kxshen/semi-accessibility-explorer">
                 Github repository
               </Link>        
             <br/>
