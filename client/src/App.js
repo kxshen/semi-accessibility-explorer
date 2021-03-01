@@ -155,7 +155,7 @@ function App() {
               <br/> <br/>
               People with higher job accessibility (<font color="#0571b0">bluer</font> dots) can reach many jobs easily, perhaps they live close to many jobs or have a car. 
               <br/> <br/>
-              People with lower job accessibility (<font color="ca0020">redder</font> dots) can reach fewer jobs with more difficulty. Perhaps they live further from jobs or rely on sparse transit service. 
+              People with lower job accessibility (<font color="#e66101">oranger</font> dots) can reach fewer jobs with more difficulty. Perhaps they live further from jobs or rely on sparse transit service. 
               <br/> <br/>
               More information about the value of the accessibility index can be found in the <Link color="teal.400" href="https://github.com/kxshen/semi-accessibility-explorer">
                 Github repository
